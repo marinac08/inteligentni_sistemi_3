@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Concordia — Audio Intelligence Workspace</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,700&display=swap');
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --bg:#0a0a0b;
+    --surface:#111113;
+    --surface2:#18181c;
+    --border:#2a2a32;
+    --accent:#c8f060;
+    --accent2:#60d0f0;
+    --text:#f0ede8;
+    --muted:#6b6b78;
+    --danger:#f06060;
+    --font-display:'Fraunces',serif;
+    --font-mono:'DM Mono',monospace;
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-mono);
+    min-height:100vh;
+    padding:0;
+  }
+
+  .app{max-width:1000px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+
+  .header{
+    display:flex;align-items:baseline;gap:1rem;
+    border-bottom:1px solid var(--border);
+    padding-bottom:1.25rem;margin-bottom:2rem;
+  }
+  .logo{
+    font-family:var(--font-display);
+    font-size:2.2rem;font-weight:700;
+    letter-spacing:-0.02em;
+    color:var(--accent);
+    line-height:1;
+  }
+  .tagline{
+    font-size:0.72rem;color:var(--muted);
+    letter-spacing:0.12em;text-transform:uppercase;
+  }
+
+  .controls-row { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+
+  .upload-zone, .midi-zone {
+    flex: 1; min-width: 280px; border:1.5px dashed var(--border);
+    border-radius:12px; padding:2.5rem 1.5rem; text-align:center;
+    cursor:pointer; transition:border-color 0.2s,background 0.2s;
+    position:relative; overflow:hidden; background: var(--surface);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+  }
+  .midi-zone { border-style: solid; cursor: default; }
+  .upload-zone:hover,.upload-zone.drag{ border-color:var(--accent); background:rgba(200,240,96,0.02); }
+  .upload-zone input{ position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+
+  .btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 0.75rem 1.5rem; border-radius: 8px;
+    font-family: var(--font-mono); cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+    margin-top: 0.5rem; z-index: 2;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn-secondary { border-color: var(--accent2); color: var(--accent2); }
+  .btn-secondary:hover { background: rgba(96,208,240,0.1); }
+
+  .upload-icon{
+    width:44px;height:44px;margin:0 auto 1rem;
+    border:1.5px solid var(--border);border-radius:50%;
+    display:flex;align-items:center;justify-content:center; font-size:1.3rem;
+  }
+  .upload-main{font-size:0.95rem;font-weight:500;margin-bottom:0.4rem;color:var(--text);}
+  .upload-sub{font-size:0.75rem;color:var(--muted);margin-bottom: 0.5rem;}
+
+  #midiLiveChord {
+    font-family: var(--font-display); font-size: 1.8rem;
+    color: var(--accent2); margin-top: 0.75rem; height: 2.2rem; font-weight: 700;
+  }
+
+  .progress-wrap{display:none;margin-top:1.5rem;}
+  .progress-label{font-size:0.72rem;color:var(--muted);letter-spacing:0.1em;margin-bottom:0.5rem;}
+  .progress-bar-track{ height:2px;background:var(--border);border-radius:2px;overflow:hidden; }
+  .progress-bar-fill{ height:100%;width:0%;background:var(--accent); transition:width 0.3s ease;border-radius:2px; }
+  .progress-step{font-size:0.72rem;color:var(--accent);margin-top:0.4rem;min-height:1em;}
+
+  .results{display:none;margin-top:2rem;}
+  .stat-row{ display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem; }
+  .stat-card{ background:var(--surface);border:1px solid var(--border); border-radius:10px;padding:1rem 1.25rem; }
+  .stat-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.5rem;}
+  .stat-value{font-family:var(--font-display);font-size:1.9rem;font-weight:700;line-height:1;color:var(--text);}
+  .stat-unit{font-size:0.72rem;color:var(--accent);margin-top:0.25rem;}
+
+  .section-title{ font-size:0.65rem;color:var(--muted); letter-spacing:0.12em;text-transform:uppercase; margin-bottom:0.75rem; margin-top: 1.5rem;}
+  .chromagram-wrap, .waveform-wrap, .chord-timeline-wrap, .lyrics-wrap{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:1rem;margin-bottom:1.5rem;overflow:hidden;
+  }
+  .lyrics-wrap {
+    font-family: var(--font-display); font-size: 1.25rem; text-align: center;
+    padding: 2rem; min-height: 90px; line-height: 1.6; color: var(--muted);
+    transition: color 0.2s;
+  }
+  .lyrics-highlight { color: var(--accent2); font-weight: 500; }
+
+  canvas{width:100%;display:block;border-radius:4px;}
+  #chromaCanvas, #waveCanvas { height: 90px; }
+
+  .chord-grid{ display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem; }
+  .chord-pill{
+    background: var(--surface); border-radius:6px;padding:8px 14px; font-size:0.78rem;font-weight:500;
+    display:flex;flex-direction:column;gap:2px; border:1px solid var(--border); animation:pillIn 0.3s ease both;
+  }
+  .chord-pill-name{font-size:1.05rem;font-weight:500;line-height:1;}
+  .chord-pill-time{font-size:0.6rem;opacity:0.7;font-family:var(--font-mono);margin-top: 2px;}
+
+  @keyframes pillIn{from{opacity:0;transform:translateY(8px) scale(0.94);}to{opacity:1;transform:none;}}
+
+  .playback-bar{
+    display:flex;align-items:center;gap:12px; background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.5rem;
+  }
+  .play-btn{
+    width:36px;height:36px;border-radius:50%; background:var(--accent);border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center; flex-shrink:0;transition:transform 0.1s;
+  }
+  .playback-progress-wrap{flex:1;position:relative;height:4px;background:var(--border);border-radius:4px;cursor:pointer;}
+  .playback-progress-fill{height:100%;background:var(--accent);border-radius:4px;width:0%;pointer-events:none;}
+  .playback-time{font-size:0.7rem;color:var(--muted);white-space:nowrap;}
+  .playback-chord-now{ font-size:1rem;color:var(--accent);min-width:60px;text-align:right; font-family:var(--font-display);font-weight:700; }
+
+  .reset-btn{
+    background:none;border:1px solid var(--border); border-radius:6px;padding:0.5rem 1rem;
+    color:var(--muted);font-family:var(--font-mono);font-size:0.72rem;
+    cursor:pointer;transition:color 0.2s,border-color 0.2s; letter-spacing:0.05em;margin-top:0.5rem;
+  }
+  .error-msg{
+    background:rgba(240,96,96,0.08);border:1px solid rgba(240,96,96,0.3);
+    border-radius:8px;padding:0.75rem 1rem;font-size:0.8rem; color:var(--danger);display:none;margin-bottom:1rem;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">Concordia</div>
+    <div class="tagline">Intelligent Harmonic Architecture</div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="controls-row" id="controlsRow">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="audio/*">
+      <div class="upload-icon">♪</div>
+      <div class="upload-main">Chord Analysis Engine</div>
+      <div class="upload-sub">Drop MP3, WAV, or FLAC</div>
+    </div>
+
+    <div class="midi-zone" id="midiZone">
+      <div class="upload-icon" style="border-color: var(--accent2);">🎹</div>
+      <div class="upload-main">Live MIDI Capture</div>
+      <button class="btn" id="midiBtn" onclick="toggleMidiRecording()">Start Listener</button>
+      <div id="midiLiveChord"></div>
+    </div>
+
+    <div class="midi-zone" id="generatorZone" style="border-color: var(--accent);">
+      <div class="upload-icon" style="border-color: var(--accent);">🎼</div>
+      <div class="upload-main">AI MIDI Generator</div>
+      <div class="upload-sub">Procedural Multi-Track Generation</div>
+      <button class="btn btn-secondary" id="generatorBtn" onclick="generateAiMidiFile()">Generate Suite</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">DSP Mathematical Engine Active</div>
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+    <div class="progress-step" id="progressStep">Awaiting Vector Signal...</div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-label">Source Processing</div>
+        <div class="stat-value" id="resTempo">DSP</div>
+        <div class="stat-unit" id="resTempoUnit">Discrete Fourier</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Harmonic Grid</div>
+        <div class="stat-value" id="resKey" style="font-size:1.4rem;">Resolved</div>
+        <div class="stat-unit" id="resKeyConf">Template Fit Matched</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Identified Changes</div>
+        <div class="stat-value" id="resChordCount">0</div>
+        <div class="stat-unit">Chords</div>
+      </div>
+    </div>
+
+    <div class="playback-bar" id="playbackBar">
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <div class="playback-progress-wrap" id="seekBar" onclick="seekAudio(event)">
+        <div class="playback-progress-fill" id="playbackFill"></div>
+      </div>
+      <div class="playback-time" id="playbackTime">0:00 / 0:00</div>
+      <div class="playback-chord-now" id="nowChord">—</div>
+    </div>
+
+    <div class="section-title">Track Vocal Lyrics Tracker (Experimental Dynamic Alignment)</div>
+    <div class="lyrics-wrap" id="lyricsWindow">Lyrics processing inactive. Start audio playback to engage text stream track.</div>
+
+    <div class="section-title">Visualized Signal Waveform</div>
+    <div class="waveform-wrap"><canvas id="waveCanvas"></canvas></div>
+
+    <div class="section-title">Harmonic Chromagram (12 Pitch Classes)</div>
+    <div class="chromagram-wrap"><canvas id="chromaCanvas"></canvas></div>
+
+    <div class="section-title">Detected Chord Progression Timeline</div>
+    <div class="chord-grid" id="chordGrid"></div>
+
+    <button class="reset-btn" onclick="resetApp()">↺ Clear Analysis & Reset Workspace</button>
+  </div>
+</div>
+
+<script>
+// --- SELF CONTAINED LIGHTWEIGHT MIDI WRITER INTERNALS ---
+// Replaces external CDN dependency entirely to allow complete offline usage
+const EmbeddedMidiEngine = {
+  createNoteBytes(pitches, durationValue, velocityValue) {
+    const channel = 0;
+    const noteOnStatus = 0x90 | channel;
+    const noteOffStatus = 0x80 | channel;
+    const convertedPitches = pitches.map(p => {
+      const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const match = p.match(/^([A-G]#?)([0-9])$/);
+      if(!match) return 60;
+      return parseInt(match[2]) * 12 + names.indexOf(match[1]) + 12;
+    });
+
+    let onDelta = [0x00];
+    let offDelta = [0x82, 0x00]; // roughly standard note gap duration
+    if (durationValue === '4') offDelta = [0x41, 0x00];
+
+    let eventsTrack = [];
+    convertedPitches.forEach((pitch, i) => {
+      eventsTrack.push(...(i === 0 ? onDelta : [0x00]), noteOnStatus, pitch, velocityValue);
+    });
+    convertedPitches.forEach((pitch, i) => {
+      eventsTrack.push(...(i === 0 ? offDelta : [0x00]), noteOffStatus, pitch, 0);
+    });
+    return eventsTrack;
+  },
+  buildTracksPayload(notesSequences) {
+    const headerChunk = [0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x01, 0x00, 0x80];
+    let trackData = [0x00, 0xc0, 0x01]; // program change instrument #1
+    notesSequences.forEach(n => {
+      trackData.push(...this.createNoteBytes(n.pitch, n.duration, n.velocity));
+    });
+    trackData.push(0x00, 0xff, 0x2f, 0x00); // Track End meta
+    
+    const len = trackData.length;
+    const trackChunkHeader = [0x4d, 0x54, 0x72, 0x6b, (len >> 24) & 0xff, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff];
+    return new Uint8Array([...headerChunk, ...trackChunkHeader, ...trackData]);
+  }
+};
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+const CHORD_TEMPLATES = (() => {
+  const t = {};
+  const types = {
+    'maj':  { intervals: [0, 4, 7], weights: [1.2, 0.9, 1.0] },
+    'min':  { intervals: [0, 3, 7], weights: [1.2, 0.9, 1.0] },
+    '7':    { intervals: [0, 4, 7, 10], weights: [1.1, 0.8, 0.8, 0.9] },
+    'dim':  { intervals: [0, 3, 6], weights: [1.1, 0.9, 0.9] }
+  };
+  for(let root=0; root<12; root++){
+    for(const [type, data] of Object.entries(types)){
+      const v = new Float32Array(12);
+      data.intervals.forEach((iv, i) => { v[(root + iv) % 12] = data.weights[i]; });
+      t[NOTE_NAMES[root] + type] = v;
+    }
+  }
+  return t;
+})();
+
+const VOCAL_LYRIC_POOL = [
+  "Walking down the neon lines of code", "Searching for the perfect fundamental node",
+  "The frequencies align inside the night", "Chasing waves of synthetic crystal light",
+  "Lost inside the math of algorithms spinning round", "Waiting for the resolution of the sound"
+];
+
+let audioCtx, audioBuffer, sourceNode, isPlaying = false, startTime = 0, pauseOffset = 0, rafId = null;
+let chordSegmentsGlobal = [], durationGlobal = 0, chordColorMapGlobal = {};
+let isRecordingMidi = false, midiAccess = null, midiActiveNotes = new Set();
+
+function setProgress(pct, step){
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressStep').textContent = step;
+}
+
+function showError(msg){
+  const e = document.getElementById('errorMsg');
+  e.textContent = msg; e.style.display='block';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if(e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file){
+  resetAppVisuals();
+  document.getElementById('progressWrap').style.display='block';
+  document.getElementById('controlsRow').style.display='none';
+  setProgress(15, 'Loading raw digital audio binary channel stream...');
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    durationGlobal = audioBuffer.duration;
+
+    setProgress(40, 'Executing Discrete Fourier Analysis (Frequencies to Chromatic Bins)...');
+    
+    const channelData = audioBuffer.getChannelData(0);
+    const analysis = extractMathematicalChroma(channelData, audioBuffer.sampleRate);
+    
+    setProgress(75, 'Matching spatial vector bins to structural chord matrices...');
+    const segs = detectChordsFromChroma(analysis.chroma, analysis.hopLength, audioBuffer.sampleRate);
+    
+    chordSegmentsGlobal = segs;
+    chordColorMapGlobal = buildChordColorMap(segs);
+
+    drawWaveform(channelData);
+    drawChromaCanvas(analysis.chroma);
+    renderChordGrid(segs);
+    
+    document.getElementById('resChordCount').textContent = segs.length;
+    document.getElementById('progressWrap').style.display='none';
+    document.getElementById('results').style.display='block';
+  } catch(e) {
+    showError("Mathematical processing exception encountered: " + e.message);
+  }
+}
+
+function extractMathematicalChroma(signal, sampleRate) {
+  const hopLength = Math.floor(sampleRate * 0.5); 
+  const numFrames = Math.floor(signal.length / hopLength);
+  const chroma = Array.from({length: 12}, () => new Float32Array(numFrames));
+  
+  const targetPitches = [];
+  for (let m = 36; m <= 84; m++) {
+    const targetFreq = 440 * Math.pow(2, (m - 69) / 12);
+    targetPitches.push({
+      pitchClass: m % 12,
+      omega: 2 * Math.PI * targetFreq / sampleRate
+    });
+  }
+
+  for (let f = 0; f < numFrames; f++) {
+    const startIdx = f * hopLength;
+    const endIdx = Math.min(startIdx + hopLength, signal.length);
+    const windowLength = endIdx - startIdx;
+    const sampleIncrement = windowLength > 2048 ? Math.floor(windowLength / 2048) : 1;
